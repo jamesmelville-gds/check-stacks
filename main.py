@@ -4,20 +4,126 @@ import re
 from sso import get_account_roles, get_accounts, get_oidc_token
 from cloudformation import list_stacks
 
-import csv
-import os
+import csv, os, sys
 
+class Version:
+    def __init__(self, version):
+        self.major = self.version.split('.')[0]
+        self.minor = self.version.split('.')[1]
+        self.patch = self.version.split('.')[2]
+    
+    def __gt__(self, other):
+        other.major = self.version.split('.')[0]
+        other.minor = self.version.split('.')[1]
+        other.patch = self.version.split('.')[2]
+
+        if self.major > other.major:
+            return True
+        
+        if self.major < other.major:
+            return False
+        
+        if self.minor > other.minor:
+            return True
+        
+        if self.minor < other.minor:
+            return False
+        
+        if self.patch > other.patch:
+            return True
+        
+        if self.patch < other.patch:
+            return False
+        
+        return False
+
+    def __lt__(self, other):
+        other.major = self.version.split('.')[0]
+        other.minor = self.version.split('.')[1]
+        other.patch = self.version.split('.')[2]
+
+        if self.major < other.major:
+            return True
+        
+        if self.major > other.major:
+            return False
+        
+        if self.minor < other.minor:
+            return True
+        
+        if self.minor > other.minor:
+            return False
+        
+        if self.patch < other.patch:
+            return True
+        
+        if self.patch > other.patch:
+            return False
+        
+        return False
+    
+    def __eq__(self, other):
+        other.major = self.version.split('.')[0]
+        other.minor = self.version.split('.')[1]
+        other.patch = self.version.split('.')[2]
+        return self.major == other.major and self.minor == other.minor and self.patch == other.patch
+    
+def match_type(required_type, type):
+    if not required_type:
+        return True
+    if required_type:
+        return required_type == type
+
+
+def match_version(after_version, before_version, version):
+    if not before_version and not after_version:
+        return True
+    if before_version and after_version:
+        if version > after_version and version < before_version:
+            return True
+    if before_version and not after_version:
+        if version < before_version:
+            return True
+    if after_version and not before_version:
+        if version > after_version:
+            return True
+    return False
+
+class Stack():
+    def __init__(self, accountId,accountName,stackName,stackType,stackVersion):
+        self.accountId = accountId
+        self.accountName = accountName
+        self.stackName = stackName
+        self.stackType = stackType
+        self.stackVersion = stackVersion
+    
+    def __str__(self):
+        return {
+            "accountId": self.accountId,
+            "accountName": self.accountName,
+            "stackName": self.stackName,
+            "stackType": self.stackType,
+            "stackVersion": self.stackVersion
+        }
 
 def main():
     session = Session()
     token = get_oidc_token(session)
     access_token = token["accessToken"]
     accounts = get_accounts(session, access_token)
-    try:
-        role_filter = os.environ['ROLE_FILTER']
-    except KeyError:
-        role_filter = 'readonly'
+    role_filter = os.environ.get('ROLE_FILTER', 'readonly')
+    before_version = os.environ.get('BEFORE_VERSION')
+    after_version = os.environ.get('AFTER_VERSION')
+    stack_type = os.environ.get('STACK_TYPE')
 
+    if before_version > after_version:
+        print(f'Version $before_version is later than $after_version')
+        sys.exit(1)
+    
+    if before_version == after_version:
+        print(f'Version $before_version is the same as $after_version')
+        sys.exit(1)
+    
     with open("stacks.csv", "w+") as f:
         writer = csv.DictWriter(
             f,
@@ -51,6 +157,7 @@ def main():
                     )
 
                     stacks = list_stacks(session)
+                    found_stacks = []
 
                     for stack in stacks:
                         name = stack["StackName"]
@@ -60,15 +167,12 @@ def main():
                             description,
                         )
                         if m:
-                            writer.writerow(
-                                {
-                                    "accountId": account_id,
-                                    "accountName": account_name,
-                                    "stackName": name,
-                                    "stackType": m.group(2),
-                                    "stackVersion": m.group(3),
-                                }
-                            )
+                            found_stacks.append(Stack(account_id,account_name,name,m.group(2),m.group(3)))
+
+                    stacks_filtered_by_type = [stack for stack in found_stacks if match_type(stack_type,stack.stackType)]
+                    stacks_filtered_by_versions = [stack for stack in stacks_filtered_by_type if match_version(after_version,before_version,stack.stackVersion)]
+                    for stack in stacks_filtered_by_versions:
+                        writer.writerow(str(stack))
 
 
 if __name__ == "__main__":

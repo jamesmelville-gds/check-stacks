@@ -18,3 +18,9 @@ Enjoy, I guess?
 ### ROLE_FILTER (default: readonly)
 - allows basic pattern matching (if role_filter in role_name) to that you can set 
   the role name to use, or roles containing `support` or `readonly`
+
+### BEFORE_VERSION (default: 'None'')
+- returns versions older than this version if set
+
+### AFTER_VERSION (default: 'None'')
+- returns versions newer than this version if set
