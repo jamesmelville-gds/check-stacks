@@ -5,6 +5,7 @@ from sso import get_account_roles, get_accounts, get_oidc_token
 from cloudformation import list_stacks
 
 import csv
+import os
 
 
 def main():
@@ -12,6 +13,10 @@ def main():
     token = get_oidc_token(session)
     access_token = token["accessToken"]
     accounts = get_accounts(session, access_token)
+    try:
+        role_filter = os.environ['ROLE_FILTER']
+    except KeyError:
+        role_filter = 'readonly'
 
     with open("stacks.csv", "w+") as f:
         writer = csv.DictWriter(
@@ -31,7 +36,7 @@ def main():
             account_id = account["accountId"]
             for role in get_account_roles(session, access_token, account_id):
                 role_name = role["roleName"]
-                if role_name == "di-support-readonly":
+                if role_filter in role_name:
                     sso = session.client("sso")
                     role_creds = sso.get_role_credentials(
                         roleName=role["roleName"],
