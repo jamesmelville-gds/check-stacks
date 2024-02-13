@@ -4,15 +4,19 @@ import re
 from sso import get_account_roles, get_accounts, get_oidc_token
 from cloudformation import list_stacks
 
-import csv, os, sys
+import csv
+import os
+import sys
 
-class Version:
+class MyVersion:
     def __init__(self, version):
         self.major = self.version.split('.')[0]
         self.minor = self.version.split('.')[1]
         self.patch = self.version.split('.')[2]
     
     def __gt__(self, other):
+        if not self.major or not self.other:
+            return False
         other.major = self.version.split('.')[0]
         other.minor = self.version.split('.')[1]
         other.patch = self.version.split('.')[2]
@@ -89,7 +93,7 @@ def match_version(after_version, before_version, version):
             return True
     return False
 
-class Stack():
+class MyStack():
     def __init__(self, accountId,accountName,stackName,stackType,stackVersion):
         self.accountId = accountId
         self.accountName = accountName
@@ -97,7 +101,7 @@ class Stack():
         self.stackType = stackType
         self.stackVersion = stackVersion
     
-    def __str__(self):
+    def dict(self):
         return {
             "accountId": self.accountId,
             "accountName": self.accountName,
@@ -107,22 +111,26 @@ class Stack():
         }
 
 def main():
-    session = Session()
+    session = Session(region_name="eu-west-2")
     token = get_oidc_token(session)
     access_token = token["accessToken"]
     accounts = get_accounts(session, access_token)
-    role_filter = os.environ.get('ROLE_FILTER', 'readonly')
+    try:
+        role_filter = os.environ['ROLE_FILTER']
+    except KeyError:
+        role_filter = 'readonly'
     before_version = os.environ.get('BEFORE_VERSION')
     after_version = os.environ.get('AFTER_VERSION')
     stack_type = os.environ.get('STACK_TYPE')
 
-    if before_version > after_version:
-        print(f'Version $before_version is later than $after_version')
-        sys.exit(1)
-    
-    if before_version == after_version:
-        print(f'Version $before_version is the same as $after_version')
-        sys.exit(1)
+    if before_version and after_version:
+        if before_version > after_version:
+            print(f'Version $before_version is later than $after_version')
+            sys.exit(1)
+        
+        if before_version == after_version:
+            print(f'Version $before_version is the same as $after_version')
+            sys.exit(1)
     
     with open("stacks.csv", "w+") as f:
         writer = csv.DictWriter(
@@ -167,12 +175,12 @@ def main():
                             description,
                         )
                         if m:
-                            found_stacks.append(Stack(account_id,account_name,name,m.group(2),m.group(3)))
+                            found_stacks.append(MyStack(account_id,account_name,name,m.group(2),m.group(3)))
 
                     stacks_filtered_by_type = [stack for stack in found_stacks if match_type(stack_type,stack.stackType)]
                     stacks_filtered_by_versions = [stack for stack in stacks_filtered_by_type if match_version(after_version,before_version,stack.stackVersion)]
                     for stack in stacks_filtered_by_versions:
-                        writer.writerow(str(stack))
+                        writer.writerow(stack.dict())
 
 
 if __name__ == "__main__":

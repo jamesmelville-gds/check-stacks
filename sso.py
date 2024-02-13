@@ -6,7 +6,7 @@ def get_oidc_token(session: Session):
     start_url = "https://uk-digital-identity.awsapps.com/start"
     sso_oidc = session.client("sso-oidc")
     client_creds = sso_oidc.register_client(
-        clientName="joe-roberts",
+        clientName="james-melville",
         clientType="public",
     )
     device_authorization = sso_oidc.start_device_authorization(
