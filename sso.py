@@ -18,8 +18,9 @@ def get_oidc_token(session: Session):
     device_code = device_authorization["deviceCode"]
     expires_in = device_authorization["expiresIn"]
     interval = device_authorization["interval"]
+    user_code = device_authorization["userCode"]
     webbrowser.open(url, autoraise=True)
-    print(f"Device code: ${device_code}")
+    print(f"Confirm on the web browser that this code is displayed: {user_code}")
     for _ in range(1, expires_in // interval + 1):
         try:
             return sso_oidc.create_token(
