@@ -125,11 +125,11 @@ def main():
 
     if before_version and after_version:
         if before_version > after_version:
-            print(f'Version ${before_version} is later than ${after_version}')
+            print(f'Version {before_version} is later than {after_version}')
             sys.exit(1)
         
         if before_version == after_version:
-            print(f'Version ${before_version} is the same as ${after_version}')
+            print(f'Version {before_version} is the same as {after_version}')
             sys.exit(1)
     
     with open("stacks.csv", "w+") as f:
