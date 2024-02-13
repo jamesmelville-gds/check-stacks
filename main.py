@@ -15,8 +15,8 @@ class MyVersion:
         self.patch = self.version.split('.')[2]
     
     def __gt__(self, other):
-        if not self.major or not self.other:
-            return False
+        if not self.major or not self.other: # TODO: Throw exception here, not assume false
+            return False  
         other.major = self.version.split('.')[0]
         other.minor = self.version.split('.')[1]
         other.patch = self.version.split('.')[2]
@@ -79,8 +79,8 @@ def match_type(required_type, type):
         return required_type == type
 
 
-def match_version(after_version, before_version, version):
-    if not before_version and not after_version:
+def match_version(after_version, before_version, version): # TODO: think of a better name
+    if not before_version and not after_version: # TODO: remove these checks when defaults are  used
         return True
     if before_version and after_version:
         if version > after_version and version < before_version:
@@ -93,7 +93,7 @@ def match_version(after_version, before_version, version):
             return True
     return False
 
-class MyStack():
+class MyStack(): # TODO: Could just be a dict
     def __init__(self, accountId,accountName,stackName,stackType,stackVersion):
         self.accountId = accountId
         self.accountName = accountName
@@ -115,12 +115,12 @@ def main():
     token = get_oidc_token(session)
     access_token = token["accessToken"]
     accounts = get_accounts(session, access_token)
-    try:
+    try: # TODO: move to .get('ROLE_FILTER', 'readonly')
         role_filter = os.environ['ROLE_FILTER']
     except KeyError:
         role_filter = 'readonly'
-    before_version = os.environ.get('BEFORE_VERSION')
-    after_version = os.environ.get('AFTER_VERSION')
+    before_version = os.environ.get('BEFORE_VERSION')# TODO: set a default to max allowed version 1000.0.0 ?
+    after_version = os.environ.get('AFTER_VERSION')  # TODO: set a default to min allowed version 0.0.0 ?
     stack_type = os.environ.get('STACK_TYPE')
 
     if before_version and after_version:
