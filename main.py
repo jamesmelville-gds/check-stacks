@@ -170,6 +170,13 @@ def main():
                     for stack in stacks:
                         name = stack["StackName"]
                         description = stack.get("Description", "")
+                        container_verifier_in_description = re.match(
+                            "^Container Verifier Main Template",
+                            description,
+                        )
+                        if container_verifier_in_description:
+                            found_stacks.append(MyStack(account_id,account_name,name,'container-verifier','0.0.0'))
+
                         m = re.match(
                             "^(di-)?devplatform-deploy ([a-z\-]+) template version: v([\d\.]+)",
                             description,
