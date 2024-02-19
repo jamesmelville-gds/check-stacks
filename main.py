@@ -79,8 +79,8 @@ def match_type(required_type, type):
         return required_type == type
 
 
-def match_version(after_version, before_version, version): # TODO: think of a better name
-    if not before_version and not after_version: # TODO: remove these checks when defaults are  used
+def match_version(after_version, before_version, version):
+    if not before_version and not after_version:
         return True
     if before_version and after_version:
         if version > after_version and version < before_version:
@@ -115,18 +115,12 @@ def main():
     token = get_oidc_token(session)
     access_token = token["accessToken"]
     accounts = get_accounts(session, access_token)
-    try: # TODO: move to .get('ROLE_FILTER', 'readonly')
-        role_filter = os.environ['ROLE_FILTER']
-    except KeyError:
-        role_filter = 'readonly'
-    before_version = os.environ.get('BEFORE_VERSION')# TODO: set a default to max allowed version 1000.0.0 ?
-    after_version = os.environ.get('AFTER_VERSION')  # TODO: set a default to min allowed version 0.0.0 ?
+    role_filter = os.environ.get('ROLE_FILTER', 'readonly')
+    before_version = os.environ.get('BEFORE_VERSION')
+    after_version = os.environ.get('AFTER_VERSION')
     stack_type = os.environ.get('STACK_TYPE')
 
     if before_version and after_version:
-        if before_version > after_version:
-            print(f'Version {before_version} is later than {after_version}')
-            sys.exit(1)
         
         if before_version == after_version:
             print(f'Version {before_version} is the same as {after_version}')
@@ -170,12 +164,20 @@ def main():
                     for stack in stacks:
                         name = stack["StackName"]
                         description = stack.get("Description", "")
+
+                        checkov_hook_in_description = re.match(
+                            "^Ensure all CloudFormation resources follow Checkov SAST rules.",
+                            description,
+                        )
+                        if checkov_hook_in_description:
+                            found_stacks.append(MyStack(account_id,account_name,name,'checkov-hook',''))
+
                         container_verifier_in_description = re.match(
                             "^Container Verifier Main Template",
                             description,
                         )
                         if container_verifier_in_description:
-                            found_stacks.append(MyStack(account_id,account_name,name,'container-verifier','0.0.0'))
+                            found_stacks.append(MyStack(account_id,account_name,name,'container-verifier',''))
 
                         m = re.match(
                             "^(di-)?devplatform-deploy ([a-z\-]+) template version: v([\d\.]+)",
@@ -188,7 +190,6 @@ def main():
                     stacks_filtered_by_versions = [stack for stack in stacks_filtered_by_type if match_version(after_version,before_version,stack.stackVersion)]
                     for stack in stacks_filtered_by_versions:
                         writer.writerow(stack.dict())
-
 
 if __name__ == "__main__":
     main()
