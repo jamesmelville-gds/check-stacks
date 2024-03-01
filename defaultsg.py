@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from boto3.session import Session
 from sso import get_account_roles, get_accounts, get_oidc_token
-from ec2 import describe_network_interfaces
+from ec2 import describe_network_interfaces, describe_security_groups
 
 import csv
 import os
@@ -26,6 +26,7 @@ def main():
                         "accountName",
                         "accountId",
                         "securityGroupId",
+                        "numberOfGroupRules",
                         "NetworkInterfaceId",
                         "interfaceType",
                         "description",
@@ -56,10 +57,12 @@ def main():
                     for eni in enis:
                         for group in eni["Groups"]:
                             if group["GroupName"] == 'default':
+                                rules = describe_security_group_rules(session, [group["GroupId"]])
                                 writer.writerow({
                                                 "accountName": account_name,
                                                 "accountId": account_id,
                                                 "securityGroupId": group["GroupId"],
+                                                "numberOfGroupRules": len(list(rules)),
                                                 "NetworkInterfaceId": eni["NetworkInterfaceId"],
                                                 "interfaceType": eni["InterfaceType"],
                                                 "description": eni["Description"]
