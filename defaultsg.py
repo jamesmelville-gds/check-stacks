@@ -26,7 +26,8 @@ def main():
                         "accountName",
                         "accountId",
                         "securityGroupId",
-                        "numberOfGroupRules",
+                        "numberOfIngressRules",
+                        "numberOfEgressRules",
                         "NetworkInterfaceId",
                         "interfaceType",
                         "description",
@@ -52,17 +53,21 @@ def main():
                         aws_secret_access_key=role_creds["secretAccessKey"],
                         aws_session_token=role_creds["sessionToken"],
                     )
-
                     enis = describe_network_interfaces(session)
                     for eni in enis:
                         for group in eni["Groups"]:
                             if group["GroupName"] == 'default':
-                                rules = describe_security_group_rules(session, [group["GroupId"]])
+                                print(group)
+                                default_sgs = [sg for sg in describe_security_groups(session, GroupIds=[group["GroupId"]])]
+                                if len(default_sgs) > 1:
+                                    print ('Too many default security groups')
+                                    exit(1)
                                 writer.writerow({
                                                 "accountName": account_name,
                                                 "accountId": account_id,
                                                 "securityGroupId": group["GroupId"],
-                                                "numberOfGroupRules": len(list(rules)),
+                                                "numberOfIngressRules": len(default_sgs[0]['IpPermissions']),
+                                                "numberOfEgressRules": len(default_sgs[0]['IpPermissionsEgress']),
                                                 "NetworkInterfaceId": eni["NetworkInterfaceId"],
                                                 "interfaceType": eni["InterfaceType"],
                                                 "description": eni["Description"]
