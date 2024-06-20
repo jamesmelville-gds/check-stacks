@@ -115,7 +115,7 @@ def main():
     token = get_oidc_token(session)
     access_token = token["accessToken"]
     accounts = get_accounts(session, access_token)
-    role_filter = os.environ.get('ROLE_FILTER', 'readonly')
+    role = os.environ['ROLE']
     before_version = os.environ.get('BEFORE_VERSION')
     after_version = os.environ.get('AFTER_VERSION')
     stack_type = os.environ.get('STACK_TYPE')
@@ -142,12 +142,12 @@ def main():
         for account in accounts:
             account_name = account["accountName"]
             account_id = account["accountId"]
-            for role in get_account_roles(session, access_token, account_id):
-                role_name = role["roleName"]
-                if role_filter in role_name:
+            for received_role in get_account_roles(session, access_token, account_id):
+                role_name = received_role["roleName"]
+                if role == role_name:
                     sso = session.client("sso")
                     role_creds = sso.get_role_credentials(
-                        roleName=role["roleName"],
+                        roleName=received_role["roleName"],
                         accountId=account_id,
                         accessToken=access_token,
                     )["roleCredentials"]
