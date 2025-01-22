@@ -10,8 +10,17 @@ import sys
 
 def main():
     session = Session(region_name="eu-west-2")
-    token = get_oidc_token(session)
-    access_token = token["accessToken"]
+    access_token = None
+    try:
+      with(open('access_token', 'r') as access_token_fh):
+        access_token = access_token_fh.read()
+    except FileNotFoundError as e:
+      print(e)
+    if (not access_token):
+      token = get_oidc_token(session)
+      access_token = token["accessToken"]
+      with(open('access_token', 'w') as access_token_fh):
+        access_token_fh.write(access_token)
     accounts = get_accounts(session, access_token)
     try: # TODO: move to .get('ROLE_FILTER', 'readonly')
         role_filter = os.environ['ROLE_FILTER']
