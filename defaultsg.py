@@ -48,7 +48,7 @@ def main():
             account_id = account["accountId"]
             for role in get_account_roles(session, access_token, account_id):
                 role_name = role["roleName"]
-                if role_filter in role_name:
+                if role_filter == role_name:
                     sso = session.client("sso")
                     role_creds = sso.get_role_credentials(
                         roleName=role["roleName"],
