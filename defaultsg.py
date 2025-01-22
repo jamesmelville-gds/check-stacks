@@ -27,8 +27,7 @@ def main():
     except KeyError:
         role_filter = 'readonly'
 
-    
-    with open("defaultSecurityGroups.csv", "w+") as f:
+    with open("defaultSecurityGroups.csv", "w+", buffering=1) as f:
         writer = csv.DictWriter(
             f,
             fieldnames=[
