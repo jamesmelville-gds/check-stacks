@@ -2,6 +2,7 @@
 from boto3.session import Session
 from sso import get_account_roles, get_accounts, get_oidc_token
 from ec2 import describe_network_interfaces, describe_security_groups
+from apigatewayv2 import describe_vpc_links
 
 import csv
 import os
@@ -39,6 +40,8 @@ def main():
                         "NetworkInterfaceId",
                         "interfaceType",
                         "description",
+                        'vpc_link_id',
+                        'vpc_link_source',
             ],
         )
         writer.writeheader()
@@ -61,16 +64,21 @@ def main():
                         aws_secret_access_key=role_creds["secretAccessKey"],
                         aws_session_token=role_creds["sessionToken"],
                     )
+                    vpc_links = describe_vpc_links(session)
+                    vpc_links_dict = {}
+                    for vpc_link in vpc_links:
+                        vpc_links_dict[vpc_link['VpcLinkId']] = vpc_link
                     enis = describe_network_interfaces(session)
                     for eni in enis:
                         for group in eni["Groups"]:
                             if group["GroupName"] == 'default':
-                                print(group)
+                                vpclinkid_tagsets = [x for x in eni['TagSet'] if x['Key'] == 'VpcLinkId']
+                                vpc_link_id = vpclinkid_tagsets[0]['Value'] if vpclinkid_tagsets else None
                                 default_sgs = [sg for sg in describe_security_groups(session, GroupIds=[group["GroupId"]])]
                                 if len(default_sgs) > 1:
                                     print ('Too many default security groups')
                                     exit(1)
-                                writer.writerow({
+                                d = {
                                                 "accountName": account_name,
                                                 "accountId": account_id,
                                                 "securityGroupId": group["GroupId"],
@@ -78,8 +86,11 @@ def main():
                                                 "numberOfEgressRules": len(default_sgs[0]['IpPermissionsEgress']),
                                                 "NetworkInterfaceId": eni["NetworkInterfaceId"],
                                                 "interfaceType": eni["InterfaceType"],
-                                                "description": eni["Description"]
-                                            })
+                                                "description": eni["Description"],
+                                                'vpc_link_id': vpc_link_id,
+                                                'vpc_link_source': vpc_links_dict[vpc_link_id]['Tags']['Source'] if vpc_link_id in vpc_links_dict and 'Source' in vpc_links_dict[vpc_link_id]['Tags'] else None
+                                }
+                                writer.writerow(d)
 
 if __name__ == "__main__":
     main()
