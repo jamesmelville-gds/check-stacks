@@ -2,6 +2,7 @@
 from boto3.session import Session
 from sso import get_account_roles, get_accounts, get_oidc_token
 from ec2 import describe_network_interfaces, describe_security_groups
+from apigatewayv2 import describe_vpc_links
 
 import csv
 import os
@@ -10,16 +11,24 @@ import sys
 
 def main():
     session = Session(region_name="eu-west-2")
-    token = get_oidc_token(session)
-    access_token = token["accessToken"]
+    access_token = None
+    try:
+      with(open('access_token', 'r') as access_token_fh):
+        access_token = access_token_fh.read()
+    except FileNotFoundError as e:
+      print(e)
+    if (not access_token):
+      token = get_oidc_token(session)
+      access_token = token["accessToken"]
+      with(open('access_token', 'w') as access_token_fh):
+        access_token_fh.write(access_token)
     accounts = get_accounts(session, access_token)
     try: # TODO: move to .get('ROLE_FILTER', 'readonly')
         role_filter = os.environ['ROLE_FILTER']
     except KeyError:
-        role_filter = 'readonly'
+        role_filter = 'ReadOnlyAccess'
 
-    
-    with open("defaultSecurityGroups.csv", "w+") as f:
+    with open("defaultSecurityGroups.csv", "w+", buffering=1) as f:
         writer = csv.DictWriter(
             f,
             fieldnames=[
@@ -31,6 +40,8 @@ def main():
                         "NetworkInterfaceId",
                         "interfaceType",
                         "description",
+                        'vpc_link_id',
+                        'vpc_link_source',
             ],
         )
         writer.writeheader()
@@ -40,7 +51,7 @@ def main():
             account_id = account["accountId"]
             for role in get_account_roles(session, access_token, account_id):
                 role_name = role["roleName"]
-                if role_filter in role_name:
+                if role_filter == role_name:
                     sso = session.client("sso")
                     role_creds = sso.get_role_credentials(
                         roleName=role["roleName"],
@@ -53,16 +64,21 @@ def main():
                         aws_secret_access_key=role_creds["secretAccessKey"],
                         aws_session_token=role_creds["sessionToken"],
                     )
+                    vpc_links = describe_vpc_links(session)
+                    vpc_links_dict = {}
+                    for vpc_link in vpc_links:
+                        vpc_links_dict[vpc_link['VpcLinkId']] = vpc_link
                     enis = describe_network_interfaces(session)
                     for eni in enis:
                         for group in eni["Groups"]:
                             if group["GroupName"] == 'default':
-                                print(group)
+                                vpclinkid_tagsets = [x for x in eni['TagSet'] if x['Key'] == 'VpcLinkId']
+                                vpc_link_id = vpclinkid_tagsets[0]['Value'] if vpclinkid_tagsets else None
                                 default_sgs = [sg for sg in describe_security_groups(session, GroupIds=[group["GroupId"]])]
                                 if len(default_sgs) > 1:
                                     print ('Too many default security groups')
                                     exit(1)
-                                writer.writerow({
+                                d = {
                                                 "accountName": account_name,
                                                 "accountId": account_id,
                                                 "securityGroupId": group["GroupId"],
@@ -70,8 +86,11 @@ def main():
                                                 "numberOfEgressRules": len(default_sgs[0]['IpPermissionsEgress']),
                                                 "NetworkInterfaceId": eni["NetworkInterfaceId"],
                                                 "interfaceType": eni["InterfaceType"],
-                                                "description": eni["Description"]
-                                            })
+                                                "description": eni["Description"],
+                                                'vpc_link_id': vpc_link_id,
+                                                'vpc_link_source': vpc_links_dict[vpc_link_id]['Tags']['Source'] if vpc_link_id in vpc_links_dict and 'Source' in vpc_links_dict[vpc_link_id]['Tags'] else None
+                                }
+                                writer.writerow(d)
 
 if __name__ == "__main__":
     main()
