@@ -26,7 +26,7 @@ def main():
     try: # TODO: move to .get('ROLE_FILTER', 'readonly')
         role_filter = os.environ['ROLE_FILTER']
     except KeyError:
-        role_filter = 'readonly'
+        role_filter = 'ReadOnlyAccess'
 
     with open("defaultSecurityGroups.csv", "w+", buffering=1) as f:
         writer = csv.DictWriter(
