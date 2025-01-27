@@ -1,3 +1,5 @@
+Archiving in favour of https://github.com/govuk-one-login/check-stacks
+
 # check-stacks
 
 A simple little script that will iterate all accounts and find stacks, creating a CSV report.
